@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>中二科學挑戰賽（成績記錄版）</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:"Noto Sans TC","PingFang HK","Microsoft JhengHei",sans-serif;background:linear-gradient(135deg,#ffecd2,#fcb69f 50%,#a1c4fd);min-height:100vh;color:#333;display:flex;justify-content:center;align-items:flex-start;padding:16px}
+.card{background:#fff;border-radius:22px;box-shadow:0 10px 30px rgba(0,0,0,.15);width:100%;max-width:620px;padding:22px;margin-top:10px}
+h1{margin:.2em 0 .4em;font-size:1.6rem;text-align:center;color:#ff6b6b}
+.sub{text-align:center;color:#666;margin-bottom:1em}
+.top{display:flex;justify-content:space-between;align-items:center;font-weight:bold;font-size:1rem;margin-bottom:8px}
+.bar{height:14px;background:#eee;border-radius:10px;overflow:hidden;margin-bottom:14px}
+.bar>div{height:100%;background:linear-gradient(90deg,#4facfe,#00f2fe);width:0;transition:width .4s}
+.timer{display:inline-block;min-width:64px;text-align:center;padding:4px 10px;border-radius:20px;background:#ffd166}
+.timer.low{background:#ef476f;color:#fff;animation:pulse .6s infinite alternate}
+@keyframes pulse{to{transform:scale(1.08)}}
+.q{font-size:1.25rem;font-weight:bold;margin:10px 0 16px;line-height:1.5}
+.opts{display:grid;gap:10px}
+.opt{font-size:1.1rem;padding:14px 16px;border-radius:14px;border:3px solid #e0e0e0;background:#fafafa;text-align:left;cursor:pointer;transition:.15s;font-family:inherit;color:#333}
+.opt:hover:not(:disabled){border-color:#4facfe;background:#eef7ff}
+.opt.correct{background:#d4f8d4;border-color:#2ecc71}
+.opt.wrong{background:#ffd6d6;border-color:#e74c3c}
+.opt:disabled{cursor:default}
+.fb{margin-top:14px;padding:12px 14px;border-radius:14px;display:none;line-height:1.5}
+.fb.ok{display:block;background:#e8fbe8;color:#1e7e34}
+.fb.bad{display:block;background:#ffeaea;color:#b02a37}
+.btn{display:block;width:100%;margin-top:16px;font-size:1.15rem;padding:14px;border:none;border-radius:14px;background:#ff6b6b;color:#fff;font-weight:bold;cursor:pointer;font-family:inherit}
+.btn:disabled{background:#ccc;cursor:not-allowed}
+.btn.blue{background:#4facfe}
+.big{font-size:3rem;text-align:center;font-weight:bold;color:#ff6b6b;margin:10px 0}
+.center{text-align:center}
+.wronglist{background:#fff6e5;border-radius:12px;padding:10px 14px;margin-top:10px;font-size:.95rem}
+label{display:block;font-weight:bold;margin:12px 0 4px}
+input{width:100%;font-size:1.1rem;padding:12px;border-radius:12px;border:2px solid #ddd;font-family:inherit}
+input:focus{outline:none;border-color:#4facfe}
+.status{margin-top:12px;padding:10px;border-radius:12px;text-align:center}
+.status.ok{background:#e8fbe8;color:#1e7e34}.status.err{background:#ffeaea;color:#b02a37}.status.wait{background:#eef7ff;color:#1c5d99}
+.hidden{display:none}
+@media(max-width:480px){h1{font-size:1.35rem}.q{font-size:1.1rem}.opt{font-size:1rem}}
+</style>
+</head>
+<body>
+
+<div class="card">
+
+<div id="start">
+  <h1>🔬 中二科學挑戰賽</h1>
+  <p class="sub">10 條選擇題，每題 <span id="secs"></span> 秒。完成後成績會自動交畀老師。</p>
+  <label for="cls">班別</label><input id="cls" placeholder="例如：2A" autocomplete="off">
+  <label for="sno">學號</label><input id="sno" placeholder="例如：05" inputmode="numeric" autocomplete="off">
+  <label for="nm">姓名</label><input id="nm" placeholder="例如：陳大文" autocomplete="off">
+  <button class="btn" id="startBtn" disabled onclick="startGame()">開始 🚀</button>
+  <p class="sub" style="font-size:.85rem;margin-top:10px">三項都要填妥先可以開始</p>
+</div>
+<div id="game" class="hidden">
+  <div class="top"><span id="count"></span><span>得分：<span id="score">0</span></span><span class="timer" id="timer">⏰ 20</span></div>
+  <div class="bar"><div id="bar"></div></div>
+  <div class="q" id="q"></div>
+  <div class="opts" id="opts"></div>
+  <div class="fb" id="fb"></div>
+  <button class="btn blue hidden" id="next" onclick="nextQ()">下一題 ➡️</button>
+</div>
+<div id="end" class="hidden">
+  <h1>🎉 完成！</h1>
+  <div class="big" id="final"></div>
+  <p class="center" id="praise"></p>
+  <p class="center" id="timeused"></p>
+  <div id="wrongbox"></div>
+  <div id="status" class="status hidden"></div>
+  <button class="btn blue hidden" id="retry" onclick="submitResult()">再試一次 🔄</button>
+  <button class="btn" onclick="backToStart()">再玩一次 🔁</button>
+</div>
+</div>
+<script>
+// ★★★ 老師請將自己的 Apps Script 網頁應用程式網址（以 /exec 結尾）貼喺下面 ★★★
+const SCRIPT_URL = '貼上你的 Apps Script 網址';
+// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
+// ====== 題目資料（老師只需修改呢度）======
+const QUESTIONS = [
+  { question: '以下邊一個結構只會喺植物細胞找到，動物細胞就冇？', options: ['細胞膜', '細胞核', '細胞壁', '細胞質'], answer: 2, explanation: '細胞壁由纖維素組成，支持植物細胞；動物細胞冇細胞壁。' },
+  { question: '細胞入面邊個部分負責控制細胞的活動？', options: ['細胞核', '液泡', '細胞膜', '細胞壁'], answer: 0, explanation: '細胞核含有遺傳物質，控制細胞的活動。' },
+  { question: '植物細胞進行光合作用的地方是：', options: ['細胞核', '葉綠體', '液泡', '細胞膜'], answer: 1, explanation: '葉綠體含葉綠素，可以吸收光能進行光合作用。' },
+  { question: '電流的單位是甚麼？', options: ['伏特 (V)', '歐姆 (Ω)', '瓦特 (W)', '安培 (A)'], answer: 3, explanation: '電流用安培 (A) 量度，可以用安培計量度。' },
+  { question: '三個燈泡串聯，如果其中一個燒壞，其餘兩個燈泡會：', options: ['變得更光', '全部熄滅', '保持原本光度', '只有一個熄滅'], answer: 1, explanation: '串聯電路只有一條通路，一個燈泡燒壞，整個電路就斷開。' },
+  { question: '以下邊一種物料是良好的電導體？', options: ['膠', '玻璃', '銅', '木'], answer: 2, explanation: '銅是金屬，容易導電，所以常用來做電線。' },
+  { question: '太陽的熱可以穿過太空（真空）傳到地球，這是靠：', options: ['傳導', '對流', '輻射', '蒸發'], answer: 2, explanation: '輻射唔需要介質，可以在真空中傳遞熱。' },
+  { question: '將金屬匙羹放入熱湯，匙柄很快變熱，主要是因為：', options: ['傳導', '對流', '輻射', '凝結'], answer: 0, explanation: '金屬是熱的良導體，熱經傳導由匙羹一端傳到另一端。' },
+  { question: 'pH 值等於 7 的溶液屬於：', options: ['強酸性', '弱酸性', '中性', '鹼性'], answer: 2, explanation: 'pH 7 是中性（例如純水）；小於 7 是酸性，大於 7 是鹼性。' },
+  { question: '酸和鹼互相反應，產生鹽和水，這個反應叫做：', options: ['燃燒', '中和作用', '氧化', '光合作用'], answer: 1, explanation: '酸和鹼的反應叫中和作用，產物是鹽和水。' }
+];
+const SECONDS_PER_QUESTION = 20;   // 每題秒數
+const POINTS_PER_QUESTION = 10;    // 每題分數
+// ====== 題目資料完 ======
+
+const LETTERS = ['A', 'B', 'C', 'D'];
+const CHEERS = ['好叻呀！👍', '答得好！🌟', '完全正確！🎯', '勁呀！繼續加油！💪', '你係科學小達人！🔬'];
+const COMFORT = ['唔緊要，下一題加油！💪', '差少少啫，記住個解釋！📘', '學到嘢就係贏！✨'];
+let order = [], idx = 0, score = 0, wrong = [], timeLeft = 0, tick = null, startTime = 0, answered = false;
+const $ = id => document.getElementById(id);
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+$('secs').textContent = SECONDS_PER_QUESTION;
+
+function show(id) { ['start', 'game', 'end'].forEach(s => $(s).classList.toggle('hidden', s !== id)); }
+
+function startGame() {
+  student = { cls: $('cls').value.trim(), sno: $('sno').value.trim(), name: $('nm').value.trim() };
+  if (!student.cls || !student.sno || !student.name) { alert('請填妥班別、學號同姓名'); return; }
+  order = shuffle(QUESTIONS); idx = 0; score = 0; wrong = [];
+  startTime = Date.now();
+  show('game'); renderQ();
+}
+
+function renderQ() {
+  const item = order[idx]; answered = false;
+  $('count').textContent = '第 ' + (idx + 1) + ' / ' + order.length + ' 題';
+  $('score').textContent = score;
+  $('bar').style.width = (idx / order.length * 100) + '%';
+  $('q').textContent = item.question;
+  $('fb').className = 'fb'; $('fb').innerHTML = '';
+  $('next').classList.add('hidden');
+  const box = $('opts'); box.innerHTML = '';
+  item.options.forEach((o, i) => {
+    const b = document.createElement('button');
+    b.className = 'opt'; b.textContent = LETTERS[i] + '. ' + o;
+    b.onclick = () => choose(i);
+    box.appendChild(b);
+  });
+  timeLeft = SECONDS_PER_QUESTION; updateTimer();
+  clearInterval(tick);
+  tick = setInterval(() => { timeLeft--; updateTimer(); if (timeLeft <= 0) choose(-1); }, 1000);
+}
+
+function updateTimer() { const t = $('timer'); t.textContent = '⏰ ' + Math.max(timeLeft, 0); t.classList.toggle('low', timeLeft <= 5); }
+
+function choose(i) {
+  if (answered) return; answered = true; clearInterval(tick);
+  const item = order[idx];
+  const btns = $('opts').querySelectorAll('.opt');
+  btns.forEach(b => b.disabled = true);
+  btns[item.answer].classList.add('correct');
+  const fb = $('fb');
+  if (i === item.answer) {
+    score += POINTS_PER_QUESTION;
+    fb.className = 'fb ok'; fb.innerHTML = '✅ <b>' + pick(CHEERS) + '</b><br>' + item.explanation;
+  } else {
+    if (i >= 0) btns[i].classList.add('wrong');
+    wrong.push(item.question);
+    fb.className = 'fb bad';
+    fb.innerHTML = (i < 0 ? '⏰ <b>夠鐘喇！</b>' : '❌ <b>' + pick(COMFORT) + '</b>') +
+      '<br>正確答案：' + LETTERS[item.answer] + '. ' + item.options[item.answer] + '<br>' + item.explanation;
+  }
+  $('score').textContent = score;
+  $('bar').style.width = ((idx + 1) / order.length * 100) + '%';
+  $('next').textContent = idx + 1 < order.length ? '下一題 ➡️' : '睇結果 🏆';
+  $('next').classList.remove('hidden');
+}
+
+function nextQ() { idx++; if (idx < order.length) renderQ(); else endGame(); }
+
+function endGame() {
+  const total = order.length * POINTS_PER_QUESTION;
+  const secs = Math.round((Date.now() - startTime) / 1000);
+  show('end');
+  $('final').textContent = score + ' / ' + total;
+  const r = score / total;
+  $('praise').textContent = r === 1 ? '滿分！你係科學之星！🌟🌟🌟' : r >= 0.7 ? '好出色！差少少就滿分喇！👏' : r >= 0.5 ? '唔錯呀！再溫吓就更好！📚' : '唔緊要，再玩一次一定進步！💪';
+  $('timeused').textContent = '用時：' + secs + ' 秒';
+  $('wrongbox').innerHTML = wrong.length ? '<div class="wronglist"><b>要溫習嘅題目：</b><ol>' + wrong.map(w => '<li>' + w.replace(/</g, '&lt;') + '</li>').join('') + '</ol></div>' : '';
+  lastResult = { timestamp: new Date().toISOString(), class: student.cls, studentNo: student.sno, name: student.name, score: score, total: total, timeSpent: secs, wrongItems: wrong };
+  submitResult();
+}
+
+let student = { cls: '', sno: '', name: '' }, lastResult = null;
+function checkForm() { $('startBtn').disabled = !($('cls').value.trim() && $('sno').value.trim() && $('nm').value.trim()); }
+['cls', 'sno', 'nm'].forEach(id => $(id).addEventListener('input', checkForm));
+
+function submitResult() {
+  const st = $('status'); $('retry').classList.add('hidden');
+  if (!SCRIPT_URL || SCRIPT_URL.indexOf('script.google.com') < 0) {
+    st.className = 'status err'; st.textContent = '⚠️ 未設定 SCRIPT_URL，成績未能提交。請老師喺程式頂部貼上 Apps Script 網址。'; return;
+  }
+  st.className = 'status wait'; st.textContent = '⏳ 提交緊成績…';
+  fetch(SCRIPT_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(lastResult)
+  }).then(() => {
+    st.className = 'status ok'; st.textContent = '✅ 已提交成績，多謝！';
+  }).catch(err => {
+    st.className = 'status err'; st.textContent = '❌ 提交失敗，請檢查網絡後再試一次。';
+    $('retry').classList.remove('hidden');
+  });
+}
+function backToStart() { $('status').className = 'status hidden'; show('start'); checkForm(); }
+
+</script>
+</body>
+</html>
