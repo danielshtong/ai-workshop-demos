@@ -39,7 +39,7 @@ function doPost(e) {
     sheet.appendRow([
       time,
       data['class'] || '',
-      String(data.studentNo || ''),
+      "'" + String(data.studentNo || ''),   // 前面加 ' 強制當文字，05 唔會變 5
       data.name || '',
       Number(data.score) || 0,
       Number(data.total) || 0,
